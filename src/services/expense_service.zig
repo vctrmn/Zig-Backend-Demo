@@ -45,12 +45,21 @@ pub const ExpenseService = struct {
     pub fn getExpensesAsJson(self: *ExpenseService) ![]const u8 {
         const expenses = try self.getAllExpenses();
         defer {
-            for (expenses) |expense| {
-                expense.deinit(self.allocator);
+            for (expenses) |*expense| {
+                expense.deinit();
             }
             self.allocator.free(expenses);
         }
-        return try std.json.stringifyAlloc(self.allocator, expenses, .{});
+        
+        // Convert to ExpenseData for JSON serialization
+        var expense_data_list = std.ArrayList(ExpenseModel.ExpenseData).init(self.allocator);
+        defer expense_data_list.deinit();
+        
+        for (expenses) |*expense| {
+            try expense_data_list.append(expense.getData());
+        }
+        
+        return try std.json.stringifyAlloc(self.allocator, expense_data_list.items, .{});
     }
 
 };

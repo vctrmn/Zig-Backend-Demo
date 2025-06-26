@@ -14,12 +14,12 @@ pub const ErrorResponse = struct {
     message: []const u8,
 };
 
-pub fn sendExpenseJson(request: zap.Request, expense: ExpenseModel.Expense) !void {
+pub fn sendExpenseJson(request: zap.Request, expense_data: ExpenseModel.ExpenseData) !void {
     var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
     defer arena.deinit();
     const allocator = arena.allocator();
     
-    const json = try std.json.stringifyAlloc(allocator, expense, .{});
+    const json = try std.json.stringifyAlloc(allocator, expense_data, .{});
     try request.sendJson(json);
 }
 

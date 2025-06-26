@@ -3,18 +3,26 @@ const zqlite = @import("zqlite");
 
 const Allocator = std.mem.Allocator;
 
-// Core domain model
-pub const Expense = struct {
+// Core domain model for JSON serialization (no arena)
+pub const ExpenseData = struct {
     id: usize,
     description: []const u8,
     amount: f64,
     category: []const u8,
     date: []const u8, // ISO format: YYYY-MM-DD
+};
 
-    pub fn deinit(self: *const Expense, allocator: Allocator) void {
-        allocator.free(self.description);
-        allocator.free(self.category);
-        allocator.free(self.date);
+// Full expense with arena allocator
+pub const Expense = struct {
+    arena: std.heap.ArenaAllocator,
+    data: ExpenseData,
+
+    pub fn deinit(self: *Expense) void {
+        self.arena.deinit();
+    }
+
+    pub fn getData(self: *const Expense) ExpenseData {
+        return self.data;
     }
 };
 
@@ -46,25 +54,23 @@ pub const ExpenseRepository = struct {
     pub fn findById(self: *ExpenseRepository, id: usize) !?Expense {
         if (self.conn.row("SELECT id, description, amount, category, date FROM expenses WHERE id = ?", .{id}) catch null) |expense_row| {
             defer expense_row.deinit();
-
-            const description = try self.allocator.dupe(u8, expense_row.text(1));
-            errdefer self.allocator.free(description);
-
-            const category = try self.allocator.dupe(u8, expense_row.text(3));
-            errdefer self.allocator.free(category);
-
-            const date = try self.allocator.dupe(u8, expense_row.text(4));
-            errdefer {
-                self.allocator.free(description);
-                self.allocator.free(category);
-            }
-
+            
+            var arena = std.heap.ArenaAllocator.init(self.allocator);
+            const arena_allocator = arena.allocator();
+            
+            const description = try arena_allocator.dupe(u8, expense_row.text(1));
+            const category = try arena_allocator.dupe(u8, expense_row.text(3));
+            const date = try arena_allocator.dupe(u8, expense_row.text(4));
+            
             return Expense{
-                .id = @intCast(expense_row.int(0)),
-                .description = description,
-                .amount = expense_row.float(2),
-                .category = category,
-                .date = date,
+                .arena = arena,
+                .data = ExpenseData{
+                    .id = @intCast(expense_row.int(0)),
+                    .description = description,
+                    .amount = expense_row.float(2),
+                    .category = category,
+                    .date = date,
+                },
             };
         }
         return null;
@@ -76,25 +82,31 @@ pub const ExpenseRepository = struct {
     }
 
     pub fn findAll(self: *ExpenseRepository) ![]Expense {
-        var arena = std.heap.ArenaAllocator.init(self.allocator);
-        defer arena.deinit();
-        const arena_allocator = arena.allocator();
+        var temp_arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer temp_arena.deinit();
+        const temp_allocator = temp_arena.allocator();
 
-        var expense_list = std.ArrayList(Expense).init(arena_allocator);
+        var expense_list = std.ArrayList(Expense).init(temp_allocator);
         var rows = try self.conn.rows("SELECT id, description, amount, category, date FROM expenses ORDER BY id", .{});
         defer rows.deinit();
 
         while (rows.next()) |expense_row| {
-            const description = try self.allocator.dupe(u8, expense_row.text(1));
-            const category = try self.allocator.dupe(u8, expense_row.text(3));
-            const date = try self.allocator.dupe(u8, expense_row.text(4));
+            var expense_arena = std.heap.ArenaAllocator.init(self.allocator);
+            const expense_allocator = expense_arena.allocator();
+            
+            const description = try expense_allocator.dupe(u8, expense_row.text(1));
+            const category = try expense_allocator.dupe(u8, expense_row.text(3));
+            const date = try expense_allocator.dupe(u8, expense_row.text(4));
 
             try expense_list.append(Expense{
-                .id = @intCast(expense_row.int(0)),
-                .description = description,
-                .amount = expense_row.float(2),
-                .category = category,
-                .date = date,
+                .arena = expense_arena,
+                .data = ExpenseData{
+                    .id = @intCast(expense_row.int(0)),
+                    .description = description,
+                    .amount = expense_row.float(2),
+                    .category = category,
+                    .date = date,
+                },
             });
         }
 
