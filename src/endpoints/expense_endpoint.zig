@@ -81,13 +81,13 @@ pub const ExpenseEndpoint = struct {
     }
 
     fn getAllExpenses(self: *ExpenseEndpoint, request: zap.Request) !void {
-        if (self.service.getExpensesAsJson()) |json| {
-            defer self.service.allocator.free(json);
-            try request.sendJson(json);
-        } else |err| {
-            std.debug.print("Error creating JSON: {}\n", .{err});
+        const json = self.service.getExpensesAsJson() catch |err| {
+            std.log.err("Error creating JSON: {}", .{err});
             try response.sendError(request, .internal_server_error, "Internal server error");
-        }
+            return;
+        };
+        defer self.service.allocator.free(json);
+        try request.sendJson(json);
     }
 
     fn createExpense(self: *ExpenseEndpoint, request: zap.Request) !void {

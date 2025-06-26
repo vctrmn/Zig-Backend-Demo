@@ -15,11 +15,9 @@ pub const ErrorResponse = struct {
 };
 
 pub fn sendExpenseJson(request: zap.Request, expense_data: ExpenseModel.ExpenseData) !void {
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-    defer arena.deinit();
-    const allocator = arena.allocator();
-    
-    const json = try std.json.stringifyAlloc(allocator, expense_data, .{});
+    // Use stack buffer for zero-allocation hot path
+    var response_buffer: [512]u8 = undefined;
+    const json = try zap.util.stringifyBuf(&response_buffer, expense_data, .{});
     try request.sendJson(json);
 }
 

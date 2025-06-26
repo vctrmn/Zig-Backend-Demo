@@ -3,7 +3,7 @@ const zap = @import("zap");
 
 const ExpenseService = @import("services/expense_service.zig").ExpenseService;
 const SummaryService = @import("services/summary_service.zig").SummaryService;
-const DatabaseManager = @import("database/sqlite.zig").DatabaseManager;
+const zqlite = @import("zqlite");
 const ServerConfig = @import("config.zig").ServerConfig;
 
 const ExpenseEndpoint = @import("endpoints/expense_endpoint.zig").ExpenseEndpoint;
@@ -42,17 +42,22 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    // Initialize database
-    var db_manager = try DatabaseManager.init();
-    defer db_manager.deinit();
+    // Initialize database with zqlite.Pool
+    var db_pool = try zqlite.Pool.init(allocator, .{
+        .size = 10,
+        .path = "expenses.db",
+        .on_first_connection = &initializeDatabase,
+        .on_connection = &configureConnection,
+    });
+    defer db_pool.deinit();
 
     // Initialize validation
     try validation.initValidators(allocator);
     defer validation.deinitValidators(allocator);
 
-    // Initialize services
-    var expense_service = ExpenseService.init(db_manager.getConnection(), allocator);
-    var summary_service = SummaryService.init(db_manager.getConnection(), allocator);
+    // Initialize services with zqlite pool
+    var expense_service = ExpenseService.initWithPool(db_pool, allocator);
+    var summary_service = SummaryService.initWithPool(db_pool, allocator);
 
     // Setup listener
     var listener = zap.Endpoint.Listener.init(
@@ -84,4 +89,28 @@ pub fn main() !void {
         .threads = ServerConfig.threads,
         .workers = ServerConfig.workers,
     });
+}
+
+// Database initialization callback (matches zqlite.Pool signature)
+fn initializeDatabase(conn: zqlite.Conn, data: ?*anyopaque) !void {
+    _ = data;
+    try conn.exec(
+        \\CREATE TABLE IF NOT EXISTS expenses (
+        \\    id INTEGER PRIMARY KEY AUTOINCREMENT,
+        \\    description TEXT NOT NULL,
+        \\    amount REAL NOT NULL,
+        \\    category TEXT NOT NULL,
+        \\    date TEXT NOT NULL
+        \\)
+    , .{});
+}
+
+// Connection configuration callback (matches zqlite.Pool signature)
+fn configureConnection(conn: zqlite.Conn, data: ?*anyopaque) !void {
+    _ = data;
+    try conn.exec("PRAGMA foreign_keys = ON", .{});
+    try conn.exec("PRAGMA journal_mode = WAL", .{});
+    try conn.exec("PRAGMA synchronous = NORMAL", .{});
+    try conn.exec("PRAGMA cache_size = 10000", .{});
+    try conn.exec("PRAGMA temp_store = MEMORY", .{});
 }
