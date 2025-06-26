@@ -37,12 +37,22 @@ pub const Expense = struct {
         pub fn findById(self: *Repository, id: usize) ?Expense {
             if (self.conn.row("SELECT id, description, amount, category, date FROM expenses WHERE id = ?", .{id}) catch null) |expense_row| {
                 defer expense_row.deinit();
+                const description = self.allocator.dupe(u8, expense_row.text(1)) catch return null;
+                const category = self.allocator.dupe(u8, expense_row.text(3)) catch {
+                    self.allocator.free(description);
+                    return null;
+                };
+                const date = self.allocator.dupe(u8, expense_row.text(4)) catch {
+                    self.allocator.free(description);
+                    self.allocator.free(category);
+                    return null;
+                };
                 return .{
                     .id = @intCast(expense_row.int(0)),
-                    .description = expense_row.text(1),
+                    .description = description,
                     .amount = expense_row.float(2),
-                    .category = expense_row.text(3),
-                    .date = expense_row.text(4),
+                    .category = category,
+                    .date = date,
                 };
             }
             return null;

@@ -27,6 +27,12 @@ pub const ExpenseService = struct {
         return self.repository.findById(id);
     }
 
+    pub fn freeExpense(self: *ExpenseService, expense: ExpenseModel.Expense) void {
+        self.allocator.free(expense.description);
+        self.allocator.free(expense.category);
+        self.allocator.free(expense.date);
+    }
+
     pub fn deleteExpense(self: *ExpenseService, id: usize) bool {
         self.lock.lock();
         defer self.lock.unlock();

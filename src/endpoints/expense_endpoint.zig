@@ -72,6 +72,7 @@ pub const ExpenseEndpoint = struct {
 
     fn getExpense(self: *ExpenseEndpoint, request: zap.Request, id: usize) !void {
         if (self.service.getExpense(id)) |expense| {
+            defer self.service.freeExpense(expense);
             try response.sendExpenseJson(request, expense);
         } else {
             try response.sendError(request, .not_found, "Expense not found");
