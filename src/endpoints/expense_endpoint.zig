@@ -71,8 +71,8 @@ pub const ExpenseEndpoint = struct {
     }
 
     fn getExpense(self: *ExpenseEndpoint, request: zap.Request, id: usize) !void {
-        if (self.service.getExpense(id)) |expense| {
-            defer self.service.freeExpense(expense);
+        if (try self.service.getExpense(id)) |expense| {
+            defer expense.deinit(self.service.allocator);
             try response.sendExpenseJson(request, expense);
         } else {
             try response.sendError(request, .not_found, "Expense not found");
@@ -113,7 +113,7 @@ pub const ExpenseEndpoint = struct {
         }
 
         const parsed_expense = std.json.parseFromSlice(
-            ExpenseModel.Expense.CreateRequest,
+            ExpenseModel.CreateExpenseRequest,
             self.service.allocator,
             body,
             .{},
@@ -139,7 +139,7 @@ pub const ExpenseEndpoint = struct {
     }
 
     fn deleteExpense(self: *ExpenseEndpoint, request: zap.Request, id: usize) !void {
-        if (self.service.deleteExpense(id)) {
+        if (try self.service.deleteExpense(id)) {
             const api_response = response.ApiResponse{
                 .status = "success",
                 .message = "Expense deleted successfully",

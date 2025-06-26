@@ -16,7 +16,7 @@ pub const SummaryEndpoint = struct {
     }
 
     pub fn get(self: *SummaryEndpoint, request: zap.Request) !void {
-        const summary = self.service.getSummary();
+        const summary = try self.service.getSummary();
         try response.sendSummaryJson(request, summary);
     }
 

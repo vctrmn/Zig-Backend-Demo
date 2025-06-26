@@ -3,43 +3,40 @@ const zqlite = @import("zqlite");
 const ExpenseModel = @import("../models/expense.zig");
 
 const Allocator = std.mem.Allocator;
+const Expense = ExpenseModel.Expense;
+const CreateExpenseRequest = ExpenseModel.CreateExpenseRequest;
+const ExpenseRepository = ExpenseModel.ExpenseRepository;
 
 pub const ExpenseService = struct {
-    repository: ExpenseModel.Expense.Repository,
+    repository: ExpenseRepository,
     allocator: Allocator,
     lock: std.Thread.Mutex,
 
     pub fn init(conn: *zqlite.Conn, allocator: Allocator) ExpenseService {
         return .{
-            .repository = ExpenseModel.Expense.Repository.init(conn, allocator),
+            .repository = ExpenseRepository.init(conn, allocator),
             .allocator = allocator,
             .lock = std.Thread.Mutex{},
         };
     }
 
-    pub fn createExpense(self: *ExpenseService, request: ExpenseModel.Expense.CreateRequest) !usize {
+    pub fn createExpense(self: *ExpenseService, request: CreateExpenseRequest) !usize {
         self.lock.lock();
         defer self.lock.unlock();
         return try self.repository.create(request);
     }
 
-    pub fn getExpense(self: *ExpenseService, id: usize) ?ExpenseModel.Expense {
-        return self.repository.findById(id);
+    pub fn getExpense(self: *ExpenseService, id: usize) !?Expense {
+        return try self.repository.findById(id);
     }
 
-    pub fn freeExpense(self: *ExpenseService, expense: ExpenseModel.Expense) void {
-        self.allocator.free(expense.description);
-        self.allocator.free(expense.category);
-        self.allocator.free(expense.date);
-    }
-
-    pub fn deleteExpense(self: *ExpenseService, id: usize) bool {
+    pub fn deleteExpense(self: *ExpenseService, id: usize) !bool {
         self.lock.lock();
         defer self.lock.unlock();
-        return self.repository.delete(id);
+        return try self.repository.delete(id);
     }
 
-    pub fn getAllExpenses(self: *ExpenseService) ![]ExpenseModel.Expense {
+    pub fn getAllExpenses(self: *ExpenseService) ![]Expense {
         self.lock.lock();
         defer self.lock.unlock();
         return try self.repository.findAll();
@@ -49,9 +46,7 @@ pub const ExpenseService = struct {
         const expenses = try self.getAllExpenses();
         defer {
             for (expenses) |expense| {
-                self.allocator.free(expense.description);
-                self.allocator.free(expense.category);
-                self.allocator.free(expense.date);
+                expense.deinit(self.allocator);
             }
             self.allocator.free(expenses);
         }
