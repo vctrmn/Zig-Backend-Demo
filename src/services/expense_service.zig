@@ -51,34 +51,18 @@ pub const ExpenseService = struct {
         return try repo.delete(id);
     }
 
-    /// Get all expenses as full Expense objects with individual arena allocators
-    /// Use this when you need to work with individual expenses and their lifecycle
-    pub fn getAllExpenses(self: *ExpenseService) ![]Expense {
-        var service_conn = ServiceBase.ServiceConnection.init(self.pool, self.repository);
-        defer service_conn.deinit();
-
-        var repo = service_conn.getRepository(self.allocator);
-        return try repo.findAll();
-    }
-
-    /// Get all expenses as JSON string - optimized for HTTP responses
-    /// This method uses a single arena for efficient memory management
+    /// Get all expenses as JSON string
+    /// This is the primary method for listing expenses in your REST API
     pub fn getExpensesAsJson(self: *ExpenseService) ![]const u8 {
-        var arena = std.heap.ArenaAllocator.init(self.allocator);
-        defer arena.deinit();
-        const arena_allocator = arena.allocator();
-
-        const expenses_data = try self.getExpensesDataWithArena(arena_allocator);
-        return try std.json.stringifyAlloc(self.allocator, expenses_data, .{});
-    }
-
-    /// Internal helper: Get ExpenseData array using provided arena allocator
-    /// This consolidates the database querying logic and memory management
-    fn getExpensesDataWithArena(self: *ExpenseService, arena_allocator: Allocator) ![]ExpenseModel.ExpenseData {
         var service_conn = ServiceBase.ServiceConnection.init(self.pool, self.repository);
         defer service_conn.deinit();
 
         const conn = service_conn.getConn();
+
+        // Use arena for temporary data during JSON creation
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        defer arena.deinit();
+        const arena_allocator = arena.allocator();
 
         var expense_data_list = std.ArrayList(ExpenseModel.ExpenseData).init(arena_allocator);
         var rows = try conn.rows("SELECT id, description, amount, category, date FROM expenses ORDER BY id", .{});
@@ -100,6 +84,8 @@ pub const ExpenseService = struct {
         }
 
         if (rows.err) |err| return err;
-        return expense_data_list.items;
+
+        // Convert to JSON using main allocator (caller must free)
+        return try std.json.stringifyAlloc(self.allocator, expense_data_list.items, .{});
     }
 };
