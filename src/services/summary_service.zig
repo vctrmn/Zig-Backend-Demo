@@ -1,15 +1,10 @@
 const std = @import("std");
 const zqlite = @import("zqlite");
 const ExpenseModel = @import("../models/expense.zig");
+const SummaryModel = @import("../models/summary.zig");
 
 const Allocator = std.mem.Allocator;
 const ExpenseRepository = ExpenseModel.ExpenseRepository;
-
-pub const ExpenseSummaryResponse = struct {
-    total_expenses: f64,
-    expense_count: usize,
-    average_expense: f64,
-};
 
 pub const SummaryService = struct {
     pool: ?*zqlite.Pool = null,
@@ -22,7 +17,7 @@ pub const SummaryService = struct {
             .allocator = allocator,
         };
     }
-    
+
     pub fn initWithPool(pool: *zqlite.Pool, allocator: Allocator) SummaryService {
         return .{
             .pool = pool,
@@ -30,15 +25,15 @@ pub const SummaryService = struct {
         };
     }
 
-    pub fn getSummary(self: *SummaryService) !ExpenseSummaryResponse {
+    pub fn getSummary(self: *SummaryService) !SummaryModel.ExpenseSummaryResponse {
         if (self.pool) |pool| {
             var conn = pool.acquire();
             defer conn.release();
             var repo = ExpenseRepository.init(&conn, self.allocator);
-            
+
             const total_amount = try repo.getTotalAmount();
             const expense_count = try repo.getCount();
-            
+
             return .{
                 .total_expenses = total_amount,
                 .expense_count = expense_count,
@@ -47,7 +42,7 @@ pub const SummaryService = struct {
         } else {
             const total_amount = try self.repository.?.getTotalAmount();
             const expense_count = try self.repository.?.getCount();
-            
+
             return .{
                 .total_expenses = total_amount,
                 .expense_count = expense_count,

@@ -54,14 +54,14 @@ pub const ExpenseRepository = struct {
     pub fn findById(self: *ExpenseRepository, id: usize) !?Expense {
         if (self.conn.row("SELECT id, description, amount, category, date FROM expenses WHERE id = ?", .{id}) catch null) |expense_row| {
             defer expense_row.deinit();
-            
+
             var arena = std.heap.ArenaAllocator.init(self.allocator);
             const arena_allocator = arena.allocator();
-            
+
             const description = try arena_allocator.dupe(u8, expense_row.text(1));
             const category = try arena_allocator.dupe(u8, expense_row.text(3));
             const date = try arena_allocator.dupe(u8, expense_row.text(4));
-            
+
             return Expense{
                 .arena = arena,
                 .data = ExpenseData{
@@ -93,7 +93,7 @@ pub const ExpenseRepository = struct {
         while (rows.next()) |expense_row| {
             var expense_arena = std.heap.ArenaAllocator.init(self.allocator);
             const expense_allocator = expense_arena.allocator();
-            
+
             const description = try expense_allocator.dupe(u8, expense_row.text(1));
             const category = try expense_allocator.dupe(u8, expense_row.text(3));
             const date = try expense_allocator.dupe(u8, expense_row.text(4));

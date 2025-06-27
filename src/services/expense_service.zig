@@ -18,7 +18,7 @@ pub const ExpenseService = struct {
             .allocator = allocator,
         };
     }
-    
+
     pub fn initWithPool(pool: *zqlite.Pool, allocator: Allocator) ExpenseService {
         return .{
             .pool = pool,
@@ -59,6 +59,8 @@ pub const ExpenseService = struct {
         }
     }
 
+    /// Get all expenses as full Expense objects with individual arena allocators
+    /// Use this when you need to work with individual expenses and their lifecycle
     pub fn getAllExpenses(self: *ExpenseService) ![]Expense {
         if (self.pool) |pool| {
             var conn = pool.acquire();
@@ -70,27 +72,29 @@ pub const ExpenseService = struct {
         }
     }
 
+    /// Get all expenses as JSON string - optimized for HTTP responses
+    /// This method uses a single arena for efficient memory management
     pub fn getExpensesAsJson(self: *ExpenseService) ![]const u8 {
-        // Use single arena for the entire JSON operation - more efficient
         var arena = std.heap.ArenaAllocator.init(self.allocator);
         defer arena.deinit();
         const arena_allocator = arena.allocator();
-        
-        const expenses = try self.getAllExpenseDataDirect(arena_allocator);
-        return try std.json.stringifyAlloc(self.allocator, expenses, .{});
+
+        const expenses_data = try self.getExpensesDataWithArena(arena_allocator);
+        return try std.json.stringifyAlloc(self.allocator, expenses_data, .{});
     }
-    
-    // Direct ExpenseData extraction using single arena - optimal for JSON responses
-    fn getAllExpenseDataDirect(self: *ExpenseService, arena_allocator: Allocator) ![]ExpenseModel.ExpenseData {
+
+    /// Internal helper: Get ExpenseData array using provided arena allocator
+    /// This consolidates the database querying logic and memory management
+    fn getExpensesDataWithArena(self: *ExpenseService, arena_allocator: Allocator) ![]ExpenseModel.ExpenseData {
         var conn_value = if (self.pool) |pool| blk: {
             break :blk pool.acquire();
         } else self.repository.?.conn.*;
         const conn = if (self.pool) |_| &conn_value else self.repository.?.conn;
-        
+
         if (self.pool != null) {
             defer conn_value.release();
         }
-        
+
         var expense_data_list = std.ArrayList(ExpenseModel.ExpenseData).init(arena_allocator);
         var rows = try conn.rows("SELECT id, description, amount, category, date FROM expenses ORDER BY id", .{});
         defer rows.deinit();
@@ -113,15 +117,4 @@ pub const ExpenseService = struct {
         if (rows.err) |err| return err;
         return expense_data_list.items;
     }
-    
-    // Add cleanup method for ExpenseData arrays
-    pub fn freeExpenseDataArray(self: *ExpenseService, expense_data: []ExpenseModel.ExpenseData) void {
-        for (expense_data) |data| {
-            self.allocator.free(data.description);
-            self.allocator.free(data.category);
-            self.allocator.free(data.date);
-        }
-        self.allocator.free(expense_data);
-    }
-
 };

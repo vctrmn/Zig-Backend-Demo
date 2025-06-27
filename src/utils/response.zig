@@ -1,8 +1,7 @@
 const std = @import("std");
 const zap = @import("zap");
 const ExpenseModel = @import("../models/expense.zig");
-const ExpenseService = @import("../services/expense_service.zig");
-const SummaryService = @import("../services/summary_service.zig");
+const SummaryModel = @import("../models/summary.zig");
 
 pub const ApiResponse = struct {
     status: []const u8,
@@ -21,7 +20,7 @@ pub fn sendExpenseJson(request: zap.Request, expense_data: ExpenseModel.ExpenseD
     try request.sendJson(json);
 }
 
-pub fn sendSummaryJson(request: zap.Request, summary: SummaryService.ExpenseSummaryResponse) !void {
+pub fn sendSummaryJson(request: zap.Request, summary: SummaryModel.ExpenseSummaryResponse) !void {
     var response_buffer: [256]u8 = undefined;
     const json = try zap.util.stringifyBuf(&response_buffer, summary, .{});
     try request.sendJson(json);
