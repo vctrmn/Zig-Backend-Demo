@@ -2,7 +2,7 @@
 
 ## 📋 TODO
 
-- [ ] **Use type DATE and not TEXT for my expense table**
+- [ ] **Use type DATE and not TEXT for the expense table**
 
 - [ ] **Serve a static React frontend that interacts with the expenses API**
    - Use Bun for the frontend
