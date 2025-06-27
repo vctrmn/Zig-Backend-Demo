@@ -3,7 +3,7 @@ const zqlite = @import("zqlite");
 
 const Allocator = std.mem.Allocator;
 
-// Core domain model for JSON serialization (no arena)
+// Core domain model for JSON serialization
 pub const ExpenseData = struct {
     id: usize,
     description: []const u8,

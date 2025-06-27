@@ -1,5 +1,15 @@
 # Zig Backend Demo — Expenses API
 
+## 📋 TODO
+
+- [ ] **Use type DATE and not TEXT for my expense table**
+
+- [ ] **Serve a static React frontend that interacts with the expenses API**
+   - Use Bun for the frontend
+   - Get data (request/response) through [Bun's Zig FFI](https://bun.sh/docs/api/ffi#zig) for end-to-end type safety between TypeScript and Zig
+
+---
+
 ## 🧪 Getting Started
 
 ### Run Locally
@@ -137,4 +147,3 @@ This project uses the following Zig packages:
 * [`validate`](https://github.com/karlseguin/validate.zig) — Simple validation library
 
 ---
-
