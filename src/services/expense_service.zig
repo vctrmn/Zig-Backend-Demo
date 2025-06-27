@@ -1,6 +1,7 @@
 const std = @import("std");
 const zqlite = @import("zqlite");
 const ExpenseModel = @import("../models/expense.zig");
+const ServiceBase = @import("base.zig");
 
 const Allocator = std.mem.Allocator;
 const Expense = ExpenseModel.Expense;
@@ -27,49 +28,37 @@ pub const ExpenseService = struct {
     }
 
     pub fn createExpense(self: *ExpenseService, request: CreateExpenseRequest) !usize {
-        if (self.pool) |pool| {
-            var conn = pool.acquire();
-            defer conn.release();
-            var repo = ExpenseRepository.init(&conn, self.allocator);
-            return try repo.create(request);
-        } else {
-            return try self.repository.?.create(request);
-        }
+        var service_conn = ServiceBase.ServiceConnection.init(self.pool, self.repository);
+        defer service_conn.deinit();
+
+        var repo = service_conn.getRepository(self.allocator);
+        return try repo.create(request);
     }
 
     pub fn getExpense(self: *ExpenseService, id: usize) !?Expense {
-        if (self.pool) |pool| {
-            var conn = pool.acquire();
-            defer conn.release();
-            var repo = ExpenseRepository.init(&conn, self.allocator);
-            return try repo.findById(id);
-        } else {
-            return try self.repository.?.findById(id);
-        }
+        var service_conn = ServiceBase.ServiceConnection.init(self.pool, self.repository);
+        defer service_conn.deinit();
+
+        var repo = service_conn.getRepository(self.allocator);
+        return try repo.findById(id);
     }
 
     pub fn deleteExpense(self: *ExpenseService, id: usize) !bool {
-        if (self.pool) |pool| {
-            var conn = pool.acquire();
-            defer conn.release();
-            var repo = ExpenseRepository.init(&conn, self.allocator);
-            return try repo.delete(id);
-        } else {
-            return try self.repository.?.delete(id);
-        }
+        var service_conn = ServiceBase.ServiceConnection.init(self.pool, self.repository);
+        defer service_conn.deinit();
+
+        var repo = service_conn.getRepository(self.allocator);
+        return try repo.delete(id);
     }
 
     /// Get all expenses as full Expense objects with individual arena allocators
     /// Use this when you need to work with individual expenses and their lifecycle
     pub fn getAllExpenses(self: *ExpenseService) ![]Expense {
-        if (self.pool) |pool| {
-            var conn = pool.acquire();
-            defer conn.release();
-            var repo = ExpenseRepository.init(&conn, self.allocator);
-            return try repo.findAll();
-        } else {
-            return try self.repository.?.findAll();
-        }
+        var service_conn = ServiceBase.ServiceConnection.init(self.pool, self.repository);
+        defer service_conn.deinit();
+
+        var repo = service_conn.getRepository(self.allocator);
+        return try repo.findAll();
     }
 
     /// Get all expenses as JSON string - optimized for HTTP responses
@@ -86,14 +75,10 @@ pub const ExpenseService = struct {
     /// Internal helper: Get ExpenseData array using provided arena allocator
     /// This consolidates the database querying logic and memory management
     fn getExpensesDataWithArena(self: *ExpenseService, arena_allocator: Allocator) ![]ExpenseModel.ExpenseData {
-        var conn_value = if (self.pool) |pool| blk: {
-            break :blk pool.acquire();
-        } else self.repository.?.conn.*;
-        const conn = if (self.pool) |_| &conn_value else self.repository.?.conn;
+        var service_conn = ServiceBase.ServiceConnection.init(self.pool, self.repository);
+        defer service_conn.deinit();
 
-        if (self.pool != null) {
-            defer conn_value.release();
-        }
+        const conn = service_conn.getConn();
 
         var expense_data_list = std.ArrayList(ExpenseModel.ExpenseData).init(arena_allocator);
         var rows = try conn.rows("SELECT id, description, amount, category, date FROM expenses ORDER BY id", .{});

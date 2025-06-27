@@ -52,26 +52,11 @@ pub const ExpenseRepository = struct {
     }
 
     pub fn findById(self: *ExpenseRepository, id: usize) !?Expense {
-        if (self.conn.row("SELECT id, description, amount, category, date FROM expenses WHERE id = ?", .{id}) catch null) |expense_row| {
+        const row = self.conn.row("SELECT id, description, amount, category, date FROM expenses WHERE id = ?", .{id}) catch return null;
+
+        if (row) |expense_row| {
             defer expense_row.deinit();
-
-            var arena = std.heap.ArenaAllocator.init(self.allocator);
-            const arena_allocator = arena.allocator();
-
-            const description = try arena_allocator.dupe(u8, expense_row.text(1));
-            const category = try arena_allocator.dupe(u8, expense_row.text(3));
-            const date = try arena_allocator.dupe(u8, expense_row.text(4));
-
-            return Expense{
-                .arena = arena,
-                .data = ExpenseData{
-                    .id = @intCast(expense_row.int(0)),
-                    .description = description,
-                    .amount = expense_row.float(2),
-                    .category = category,
-                    .date = date,
-                },
-            };
+            return try self.buildExpenseFromRow(expense_row);
         }
         return null;
     }
@@ -91,23 +76,8 @@ pub const ExpenseRepository = struct {
         defer rows.deinit();
 
         while (rows.next()) |expense_row| {
-            var expense_arena = std.heap.ArenaAllocator.init(self.allocator);
-            const expense_allocator = expense_arena.allocator();
-
-            const description = try expense_allocator.dupe(u8, expense_row.text(1));
-            const category = try expense_allocator.dupe(u8, expense_row.text(3));
-            const date = try expense_allocator.dupe(u8, expense_row.text(4));
-
-            try expense_list.append(Expense{
-                .arena = expense_arena,
-                .data = ExpenseData{
-                    .id = @intCast(expense_row.int(0)),
-                    .description = description,
-                    .amount = expense_row.float(2),
-                    .category = category,
-                    .date = date,
-                },
-            });
+            const expense = try self.buildExpenseFromRow(expense_row);
+            try expense_list.append(expense);
         }
 
         if (rows.err) |err| return err;
@@ -115,7 +85,9 @@ pub const ExpenseRepository = struct {
     }
 
     pub fn getTotalAmount(self: *ExpenseRepository) !f64 {
-        if (self.conn.row("SELECT COALESCE(SUM(amount), 0) FROM expenses", .{}) catch null) |total_row| {
+        const row = self.conn.row("SELECT COALESCE(SUM(amount), 0) FROM expenses", .{}) catch return 0.0;
+
+        if (row) |total_row| {
             defer total_row.deinit();
             return total_row.float(0);
         }
@@ -123,10 +95,35 @@ pub const ExpenseRepository = struct {
     }
 
     pub fn getCount(self: *ExpenseRepository) !usize {
-        if (self.conn.row("SELECT COUNT(*) FROM expenses", .{}) catch null) |count_row| {
+        const row = self.conn.row("SELECT COUNT(*) FROM expenses", .{}) catch return 0;
+
+        if (row) |count_row| {
             defer count_row.deinit();
             return @intCast(count_row.int(0));
         }
         return 0;
+    }
+
+    /// Helper method to reduce duplication in building Expense objects
+    fn buildExpenseFromRow(self: *ExpenseRepository, expense_row: anytype) !Expense {
+        var arena = std.heap.ArenaAllocator.init(self.allocator);
+        errdefer arena.deinit();
+
+        const arena_allocator = arena.allocator();
+
+        const description = try arena_allocator.dupe(u8, expense_row.text(1));
+        const category = try arena_allocator.dupe(u8, expense_row.text(3));
+        const date = try arena_allocator.dupe(u8, expense_row.text(4));
+
+        return Expense{
+            .arena = arena,
+            .data = ExpenseData{
+                .id = @intCast(expense_row.int(0)),
+                .description = description,
+                .amount = expense_row.float(2),
+                .category = category,
+                .date = date,
+            },
+        };
     }
 };
