@@ -1,6 +1,6 @@
 # Zig + React Fullstack Demo — Expenses Tracker
 
-A modern fullstack expense tracking application showcasing end-to-end type safety and performance with cutting-edge technologies.
+A modern fullstack expense tracking application showcasing end-to-end type safety and performance.
 
 ## 🚀 Tech Stack
 
@@ -9,7 +9,7 @@ A modern fullstack expense tracking application showcasing end-to-end type safet
 - **Vite** for lightning-fast development
 - **Tailwind CSS 4** for modern styling
 - **shadcn/ui** for beautiful components
-- **Bun** as the JavaScript runtime
+- **Bun** as the Typescript runtime
 
 ### Backend
 - **Zig** for systems-level performance
@@ -19,7 +19,7 @@ A modern fullstack expense tracking application showcasing end-to-end type safet
 
 ### Infrastructure
 - **Docker** for containerization
-- **SQLite** with WAL mode for persistence
+- **SQLite**
 - **Bun workspaces** for monorepo management
 
 ## 📋 TODO
