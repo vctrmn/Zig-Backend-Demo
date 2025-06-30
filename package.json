@@ -8,6 +8,7 @@
     "scripts": {
         "dev:backend": "zig build run",
         "dev:frontend": "bun run --cwd frontend dev",
-        "dev": "bun run dev:backend & bun run dev:frontend & wait"
+        "dev": "bun run dev:backend & bun run dev:frontend & wait",
+        "lint": "bun run --cwd frontend lint & zig fmt src"
     }
 }
