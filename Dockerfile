@@ -1,4 +1,28 @@
-FROM debian:12.11 AS build
+FROM oven/bun:1 AS base
+WORKDIR /usr/src/app
+
+# Install dependencies for both backend and frontend into temp directory
+# this will cache them and speed up future builds
+FROM base AS install
+
+# Frontend dependencies
+RUN mkdir -p /temp/frontend-dev
+COPY frontend/package.json frontend/bun.lock* /temp/frontend-dev/
+RUN cd /temp/frontend-dev && bun install --frozen-lockfile
+
+# Build stage
+FROM base AS build-frontend
+# Copy frontend dependencies
+COPY --from=install /temp/frontend-dev/node_modules ./frontend/node_modules
+
+# Copy source code
+COPY . .
+
+# Build frontend
+WORKDIR /usr/src/app/frontend
+RUN bun run build
+
+FROM debian:12.11 AS build-server
 
 ARG ZIG_VER=0.14.0
 
@@ -14,11 +38,13 @@ COPY . .
 
 RUN /opt/zig/zig build -Doptimize=ReleaseFast -Dcpu=baseline
 
-FROM debian:12.11-slim 
+FROM debian:12.11-slim
 
 RUN apt-get update && apt-get install -y ca-certificates sqlite3
 
-COPY --from=build /app/zig-out/bin/zig_backend /server
+# Copy built frontend
+COPY --from=build-frontend /usr/src/app/frontend/dist /public
+COPY --from=build-server /app/zig-out/bin/zig_backend /server
 
 EXPOSE 3000/tcp
 

@@ -69,6 +69,7 @@ pub fn main() !void {
             .log = true,
             .max_clients = ServerConfig.max_clients,
             .max_body_size = ServerConfig.max_body_size,
+            .public_folder = ServerConfig.public_folder,
         },
     );
     defer listener.deinit();
