@@ -5,17 +5,10 @@ A modern fullstack expense tracking application showcasing end-to-end type safet
 ## 🚀 Tech Stack
 
 ### Frontend
-- **React 19** with TypeScript
-- **Vite** for lightning-fast development
-- **Tailwind CSS 4** for modern styling
-- **shadcn/ui** for beautiful components
-- **Bun** as the Typescript runtime
+- Bun / Typescript / React / Vite / Tailwindcss / Shadcn
 
 ### Backend
-- **Zig** for systems-level performance
-- **Zap** HTTP web framework
-- **zqlite** SQLite wrapper
-- **validate.zig** for request validation
+- Zig / Zap / Zqlite / Validate (request validation)
 
 ### Infrastructure
 - **Docker** for containerization
@@ -201,16 +194,3 @@ curl -X POST http://localhost:3000/api/expenses \
   -d '{"description":"Invalid expense","amount":-10.00,"category":"Test","date":"2024-12-22"}'
 ```
 
----
-
-## 📦 Dependencies
-
-This project uses the following Zig packages:
-
-* [`zap`](https://github.com/zigzap/zap) — HTTP web framework
-
-* [`zqlite`](https://github.com/karlseguin/zqlite.zig) — SQLite wrapper for Zig
-
-* [`validate`](https://github.com/karlseguin/validate.zig) — Simple validation library
-
----
