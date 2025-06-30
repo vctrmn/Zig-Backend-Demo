@@ -1,28 +1,78 @@
-# Zig Backend Demo — Expenses API
+# Zig + React Fullstack Demo — Expenses Tracker
+
+A modern fullstack expense tracking application showcasing end-to-end type safety and performance with cutting-edge technologies.
+
+## 🚀 Tech Stack
+
+### Frontend
+- **React 19** with TypeScript
+- **Vite** for lightning-fast development
+- **Tailwind CSS 4** for modern styling
+- **shadcn/ui** for beautiful components
+- **Bun** as the JavaScript runtime
+
+### Backend
+- **Zig** for systems-level performance
+- **Zap** HTTP web framework
+- **zqlite** SQLite wrapper
+- **validate.zig** for request validation
+
+### Infrastructure
+- **Docker** for containerization
+- **SQLite** with WAL mode for persistence
+- **Bun workspaces** for monorepo management
 
 ## 📋 TODO
 
 - [ ] **Use type DATE and not TEXT for the expense table**
-
-- [ ] **Serve a static React frontend that interacts with the expenses API**
-   - Use Bun for the frontend
-   - Get data (request/response) through [Bun's Zig FFI](https://bun.sh/docs/api/ffi#zig) for end-to-end type safety between TypeScript and Zig
+- [ ] **Implement Bun's Zig FFI** for direct TypeScript ↔ Zig communication
+- [ ] **Add expense editing functionality**
 
 ---
 
 ## 🧪 Getting Started
 
-### Run Locally
+### Prerequisites
+- [Zig 0.14.0+](https://ziglang.org/download/)
+- [Bun](https://bun.sh/) 
+- [Docker](https://docker.com/) (optional)
+
+### Development (Recommended)
+
+Run both frontend and backend in development mode:
 
 ```bash
+# Install frontend dependencies
+bun install
+
+# Start both services concurrently
+bun run dev
+```
+
+This will start:
+- Backend server on `http://localhost:3000`
+- Frontend dev server on `http://localhost:5173` (proxied to backend)
+
+### Individual Services
+
+**Backend only:**
+```bash
+bun run dev:backend
+# or
 zig build run
 ```
 
-### Run with Docker
-
+**Frontend only:**
 ```bash
-docker build -t zig-backend .
-docker run --rm -p 3000:3000 zig-backend
+bun run dev:frontend
+```
+
+### Production Build
+
+**With Docker:**
+```bash
+docker build -t zig-react-expenses .
+docker run --rm -p 3000:3000 zig-react-expenses
 ```
 
 ---
@@ -30,21 +80,38 @@ docker run --rm -p 3000:3000 zig-backend
 ## 🗂️ Project Structure
 
 ```text
-src/
-├── models/
-│   └── expense.zig              # Expense data structure
-├── services/
-│   ├── summary_service.zig      # Business logic for summary
-│   └── expense_service.zig      # Business logic for expense operations
-├── endpoints/
-│   ├── expense_endpoint.zig     # GET, POST, DELETE /api/expenses
-│   ├── summary_endpoint.zig     # GET /api/summary
-│   └── health_endpoint.zig      # GET /healthz
-├── database/
-│   └── sqlite.zig               # SQLite connection and setup
-├── utils/                       # Helper utilities (optional)
-├── config.zig
-└── main.zig                     # Entry point
+.
+├── frontend/                     # React frontend
+│   ├── src/
+│   │   ├── components/ui/        # shadcn/ui components
+│   │   ├── routes/               # React pages/routes
+│   │   └── lib/                  # Utilities
+│   ├── package.json
+│   ├── vite.config.ts            # Vite config with API proxy
+│   └── tailwind.config.js
+├── src/                          # Zig backend
+│   ├── models/
+│   │   ├── expense.zig           # Domain models & repository
+│   │   └── summary.zig           # Summary response types
+│   ├── services/
+│   │   ├── expense_service.zig   # Business logic
+│   │   ├── summary_service.zig   # Summary calculations
+│   │   └── base.zig              # Shared service utilities
+│   ├── endpoints/
+│   │   ├── expense_endpoint.zig  # REST API handlers
+│   │   ├── summary_endpoint.zig  # Summary endpoint
+│   │   └── health_endpoint.zig   # Health checks
+│   ├── database/
+│   │   └── sqlite.zig            # Database setup & config
+│   ├── utils/
+│   │   ├── validation.zig        # Request validation
+│   │   ├── response.zig          # HTTP response helpers
+│   │   └── endpoint_helpers.zig  # Common endpoint utilities
+│   ├── config.zig                # Server configuration
+│   └── main.zig                  # Application entry point
+├── build.zig                     # Zig build configuration
+├── Dockerfile                    # Multi-stage build
+└── package.json                  # Workspace configuration
 ```
 
 ---
